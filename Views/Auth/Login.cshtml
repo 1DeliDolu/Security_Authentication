@@ -1,41 +1,64 @@
 @model SafeVault.Models.LoginRequest
-<section class="auth-card">
-    <h1 class="auth-title">Login</h1>
-    <p class="auth-subtitle">Access your secure workspace.</p>
-
-    @if (!ViewData.ModelState.IsValid)
-    {
-        <ul class="error-list">
-        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
-        {
-            <li>@error.ErrorMessage</li>
-        }
-        </ul>
-    }
-
-    <form class="form-grid" action="/auth/login" method="post">
-        @Html.AntiForgeryToken()
-        <div>
-            <label for="username">Username</label>
-            <input type="text" id="username" name="Username" value="@Model.Username" required pattern="^[a-zA-Z0-9_]{3,50}$" maxlength="50">
-        </div>
-
-        <div>
-            <label for="password">Password</label>
-            <div class="password-field">
-                <input type="password" id="password" name="Password" required minlength="8" autocomplete="current-password">
-                <button class="toggle-password" type="button" aria-label="Show password" data-toggle="password" data-target="password">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="M12 5c-5 0-9.27 3.11-11 7.5C2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12c-3.03 0-5.5-2.24-5.5-5s2.47-5 5.5-5 5.5 2.24 5.5 5-2.47 5-5.5 5zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
-                    </svg>
-                </button>
+<section class="auth-shell">
+    <div class="auth-hero">
+        <div class="hero-content">
+            <div class="hero-badge">SafeVault</div>
+            <h1>Secure access, modern control.</h1>
+            <p>Sign in to manage users, review audits, and keep sensitive data protected.</p>
+            <div class="hero-stats">
+                <div>
+                    <span class="hero-label">Encryption</span>
+                    <span class="hero-value">PBKDF2-SHA256</span>
+                </div>
+                <div>
+                    <span class="hero-label">Access</span>
+                    <span class="hero-value">Role-Based</span>
+                </div>
             </div>
         </div>
+        <div class="hero-art">
+            <img src="/public/sv-icon.png" alt="SafeVault icon" />
+        </div>
+    </div>
 
-        <button class="btn" type="submit">Login</button>
-    </form>
+    <div class="auth-card">
+        <h1 class="auth-title">Login</h1>
+        <p class="auth-subtitle">Access your secure workspace.</p>
 
-    <p class="link-row">
-        Don't have an account? <a href="/auth/register">Register</a>
-    </p>
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <ul class="error-list">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>@error.ErrorMessage</li>
+            }
+            </ul>
+        }
+
+        <form class="form-grid" action="/auth/login" method="post">
+            @Html.AntiForgeryToken()
+            <div>
+                <label for="username">Username</label>
+                <input type="text" id="username" name="Username" value="@Model.Username" required pattern="^[a-zA-Z0-9_]{3,50}$" maxlength="50">
+            </div>
+
+            <div>
+                <label for="password">Password</label>
+                <div class="password-field">
+                    <input type="password" id="password" name="Password" required minlength="8" autocomplete="current-password">
+                    <button class="toggle-password" type="button" aria-label="Show password" data-toggle="password" data-target="password">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M12 5c-5 0-9.27 3.11-11 7.5C2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12c-3.03 0-5.5-2.24-5.5-5s2.47-5 5.5-5 5.5 2.24 5.5 5-2.47 5-5.5 5zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <button class="btn" type="submit">Login</button>
+        </form>
+
+        <p class="link-row">
+            Don't have an account? <a href="/auth/register">Register</a>
+        </p>
+    </div>
 </section>

@@ -133,6 +133,96 @@ body {
     background: radial-gradient(circle at center, rgba(217, 119, 85, 0.45), transparent 70%);
 }
 
+.auth-shell {
+    width: min(1100px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 28px;
+    align-items: stretch;
+}
+
+.auth-hero {
+    background: linear-gradient(135deg, rgba(6, 26, 58, 0.98), rgba(8, 40, 90, 0.92));
+    border-radius: 28px;
+    padding: 32px;
+    border: 1px solid rgba(99, 208, 255, 0.2);
+    box-shadow: 0 30px 70px -40px rgba(8, 22, 40, 0.9);
+    color: #e9f3ff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-hero::after {
+    content: "";
+    position: absolute;
+    top: -140px;
+    right: -120px;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle at center, rgba(99, 208, 255, 0.28), transparent 70%);
+}
+
+.hero-content h1 {
+    font-family: "Fraunces", serif;
+    font-size: 36px;
+    margin: 12px 0 10px;
+}
+
+.hero-content p {
+    margin: 0;
+    color: rgba(233, 243, 255, 0.75);
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    background: rgba(99, 208, 255, 0.12);
+    border: 1px solid rgba(99, 208, 255, 0.35);
+}
+
+.hero-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.hero-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: rgba(233, 243, 255, 0.6);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.hero-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.hero-art {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.hero-art img {
+    width: min(260px, 70%);
+    height: auto;
+    filter: drop-shadow(0 20px 40px rgba(5, 12, 24, 0.65));
+}
+
 .auth-title {
     font-family: "Fraunces", serif;
     font-size: 32px;
@@ -591,6 +681,22 @@ body {
 
     .auth-card {
         padding: 24px;
+    }
+
+    .auth-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-hero {
+        padding: 24px;
+    }
+
+    .hero-content h1 {
+        font-size: 28px;
+    }
+
+    .hero-art {
+        justify-content: center;
     }
 
     .dashboard-head {

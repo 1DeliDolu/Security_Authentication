@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <!-- Background -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#061a3a"></stop>
+      <stop offset="0.55" stop-color="#0a2f6c"></stop>
+      <stop offset="1" stop-color="#041027"></stop>
+    </linearGradient>
+
+    <radialGradient id="glow" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#50c8ff" stop-opacity="0.65"></stop>
+      <stop offset="0.35" stop-color="#1a7cff" stop-opacity="0.25"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"></stop>
+    </radialGradient>
+
+    <!-- Metallic gradients -->
+    <linearGradient id="metalFrame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6fbff"></stop>
+      <stop offset="0.2" stop-color="#cfd8e2"></stop>
+      <stop offset="0.55" stop-color="#8e9aaa"></stop>
+      <stop offset="0.75" stop-color="#e8eef5"></stop>
+      <stop offset="1" stop-color="#9aa6b5"></stop>
+    </linearGradient>
+
+    <linearGradient id="metalDoor" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3f7fb"></stop>
+      <stop offset="0.25" stop-color="#bfc9d4"></stop>
+      <stop offset="0.55" stop-color="#8f9aaa"></stop>
+      <stop offset="0.8" stop-color="#e7edf4"></stop>
+      <stop offset="1" stop-color="#a1acba"></stop>
+    </linearGradient>
+
+    <radialGradient id="dialGrad" cx="45%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#2a3038"></stop>
+      <stop offset="0.55" stop-color="#0f141a"></stop>
+      <stop offset="1" stop-color="#000000"></stop>
+    </radialGradient>
+
+    <radialGradient id="knobGrad" cx="45%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"></stop>
+      <stop offset="0.35" stop-color="#cfd8e2"></stop>
+      <stop offset="1" stop-color="#6f7b8a"></stop>
+    </radialGradient>
+
+    <!-- Shadows -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="blur"></feGaussianBlur>
+      <feOffset dx="0" dy="18" result="off"></feOffset>
+      <feColorMatrix in="off" type="matrix" values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.35 0" result="shadow"></feColorMatrix>
+      <feMerge>
+        <feMergeNode in="shadow"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+
+    <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="g"></feGaussianBlur>
+      <feColorMatrix in="g" type="matrix" values="0 0 0 0 0.35
+                0 0 0 0 0.80
+                0 0 0 0 1.00
+                0 0 0 0.35 0" result="c"></feColorMatrix>
+      <feMerge>
+        <feMergeNode in="c"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+
+    <!-- Clip for rounded icon -->
+    <clipPath id="iconClip">
+      <rect x="64" y="64" width="896" height="896" rx="190" ry="190"></rect>
+    </clipPath>
+  </defs>
+
+  <!-- Base rounded square -->
+  <g filter="url(#softShadow)">
+    <rect x="64" y="64" width="896" height="896" rx="190" ry="190" fill="url(#bgGrad)"></rect>
+    <rect x="64" y="64" width="896" height="896" rx="190" ry="190" fill="url(#glow)"></rect>
+  </g>
+
+  <!-- Metallic frame -->
+  <g clip-path="url(#iconClip)">
+    <rect x="92" y="92" width="840" height="840" rx="165" ry="165" fill="none" stroke="url(#metalFrame)" stroke-width="32" opacity="0.95"></rect>
+    <rect x="116" y="116" width="792" height="792" rx="145" ry="145" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.18"></rect>
+  </g>
+
+  <!-- Circuit background -->
+  <g clip-path="url(#iconClip)" opacity="0.75">
+    <g stroke="#63d0ff" stroke-width="4" fill="none" opacity="0.25">
+      <path d="M150 300 H300 V220 H420"></path>
+      <path d="M180 520 H340 V420 H460 V360"></path>
+      <path d="M860 310 H720 V250 H610"></path>
+      <path d="M820 560 H700 V460 H600 V400"></path>
+      <path d="M260 820 V700 H340 V640"></path>
+      <path d="M760 820 V710 H690 V650"></path>
+      <path d="M512 180 V260 H580"></path>
+      <path d="M512 860 V760 H444"></path>
+    </g>
+    <g fill="#63d0ff" opacity="0.25">
+      <circle cx="420" cy="220" r="10"></circle>
+      <circle cx="460" cy="360" r="10"></circle>
+      <circle cx="610" cy="250" r="10"></circle>
+      <circle cx="600" cy="400" r="10"></circle>
+      <circle cx="340" cy="640" r="10"></circle>
+      <circle cx="690" cy="650" r="10"></circle>
+      <circle cx="580" cy="260" r="10"></circle>
+      <circle cx="444" cy="760" r="10"></circle>
+    </g>
+  </g>
+
+  <!-- Safe door group -->
+  <g clip-path="url(#iconClip)" filter="url(#innerGlow)">
+    <!-- Door plate -->
+    <rect x="220" y="240" width="584" height="520" rx="34" ry="34" fill="url(#metalDoor)"></rect>
+    <rect x="236" y="256" width="552" height="488" rx="28" ry="28" fill="none" stroke="#0b0f14" stroke-opacity="0.25" stroke-width="6"></rect>
+
+    <!-- Hinges (left) -->
+    <g>
+      <rect x="210" y="280" width="48" height="96" rx="18" fill="url(#metalFrame)"></rect>
+      <rect x="210" y="624" width="48" height="96" rx="18" fill="url(#metalFrame)"></rect>
+      <rect x="214" y="296" width="40" height="10" rx="5" fill="#0b0f14" opacity="0.25"></rect>
+      <rect x="214" y="640" width="40" height="10" rx="5" fill="#0b0f14" opacity="0.25"></rect>
+    </g>
+
+    <!-- Corner bolts -->
+    <g fill="#dfe7f0" opacity="0.95">
+      <circle cx="260" cy="280" r="10"></circle><circle cx="764" cy="280" r="10"></circle>
+      <circle cx="260" cy="740" r="10"></circle><circle cx="764" cy="740" r="10"></circle>
+    </g>
+    <g fill="#0b0f14" opacity="0.22">
+      <circle cx="260" cy="280" r="5"></circle><circle cx="764" cy="280" r="5"></circle>
+      <circle cx="260" cy="740" r="5"></circle><circle cx="764" cy="740" r="5"></circle>
+    </g>
+
+    <!-- Dial (combination lock) -->
+    <g transform="translate(0,0)">
+      <circle cx="450" cy="500" r="120" fill="url(#dialGrad)"></circle>
+      <circle cx="450" cy="500" r="138" fill="none" stroke="#e8eef5" stroke-opacity="0.35" stroke-width="18"></circle>
+      <circle cx="450" cy="500" r="98" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="8"></circle>
+
+      <!-- Tick marks -->
+      <g stroke="#ffffff" stroke-opacity="0.65" stroke-width="4">
+        <!-- 24 ticks -->
+        <g transform="translate(450 500)">
+          <!-- repeated by rotation -->
+          <line x1="0" y1="-122" x2="0" y2="-100"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(15)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(30)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(45)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(60)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(75)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(90)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(105)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(120)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(135)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(150)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(165)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(180)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(195)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(210)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(225)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(240)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(255)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(270)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(285)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(300)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(315)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-100" transform="rotate(330)"></line>
+          <line x1="0" y1="-122" x2="0" y2="-106" transform="rotate(345)"></line>
+        </g>
+      </g>
+
+      <!-- Dial center -->
+      <circle cx="450" cy="500" r="52" fill="#0a0d11" opacity="0.9"></circle>
+      <circle cx="450" cy="500" r="44" fill="url(#knobGrad)" opacity="0.9"></circle>
+      <circle cx="450" cy="500" r="20" fill="#0a0d11" opacity="0.35"></circle>
+    </g>
+
+    <!-- Wheel handle -->
+    <g>
+      <circle cx="650" cy="510" r="86" fill="none" stroke="#0b0f14" stroke-opacity="0.20" stroke-width="16"></circle>
+      <circle cx="650" cy="510" r="72" fill="url(#metalFrame)"></circle>
+      <circle cx="650" cy="510" r="18" fill="#0b0f14" opacity="0.25"></circle>
+
+      <g transform="translate(650 510)" stroke="url(#metalFrame)" stroke-width="22" stroke-linecap="round">
+        <line x1="0" y1="0" x2="78" y2="-18"></line>
+        <line x1="0" y1="0" x2="-10" y2="84"></line>
+        <line x1="0" y1="0" x2="-68" y2="-48"></line>
+      </g>
+      <g transform="translate(650 510)" stroke="#0b0f14" stroke-opacity="0.22" stroke-width="10" stroke-linecap="round">
+        <line x1="0" y1="0" x2="78" y2="-18"></line>
+        <line x1="0" y1="0" x2="-10" y2="84"></line>
+        <line x1="0" y1="0" x2="-68" y2="-48"></line>
+      </g>
+    </g>
+
+    <!-- Small latch blocks -->
+    <g opacity="0.95">
+      <rect x="720" y="300" width="56" height="40" rx="10" fill="url(#metalFrame)"></rect>
+      <rect x="720" y="700" width="56" height="40" rx="10" fill="url(#metalFrame)"></rect>
+      <rect x="730" y="312" width="36" height="10" rx="5" fill="#0b0f14" opacity="0.22"></rect>
+      <rect x="730" y="712" width="36" height="10" rx="5" fill="#0b0f14" opacity="0.22"></rect>
+    </g>
+  </g>
+
+  <!-- Optional label -->
+  <g id="label">
+    <text x="512" y="930" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="120" font-weight="800" fill="#ffffff" opacity="0.92" style="letter-spacing: -2px;">
+      SafeVault
+    </text>
+    <text x="512" y="930" text-anchor="middle" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="120" font-weight="800" fill="#000000" opacity="0.18" transform="translate(0,10)" style="letter-spacing: -2px;">
+      SafeVault
+    </text>
+  </g>
+</svg>
