@@ -1,161 +1,166 @@
+using Microsoft.EntityFrameworkCore;
 using SafeVault.Data;
 using SafeVault.Models;
 using SafeVault.Services;
 
-namespace SafeVault.Repositories
+namespace SafeVault.Repositories;
+
+public class UserRepository
 {
-    /// <summary>
-    /// User repository with secure parameterized queries to prevent SQL injection.
-    /// </summary>
-    public class UserRepository
+    private readonly SafeVaultDbContext _context;
+
+    public UserRepository(SafeVaultDbContext context)
     {
-        private readonly SafeVaultDbContext _context;
+        _context = context;
+    }
 
-        public UserRepository(SafeVaultDbContext context)
+    public async Task<User?> GetByUsernameAsync(string username)
+    {
+        var normalized = InputValidationService.Normalize(username);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Username == normalized);
+    }
+
+    public async Task<User?> GetByIdAsync(int userId)
+    {
+        return await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+    }
+
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        var normalized = InputValidationService.Normalize(email);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email == normalized);
+    }
+
+    public async Task<List<User>> GetAllAsync()
+    {
+        return await _context.Users
+            .AsNoTracking()
+            .OrderByDescending(u => u.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<User> CreateUserAsync(User user)
+    {
+        if (user is null)
         {
-            _context = context;
+            throw new ArgumentNullException(nameof(user));
         }
 
-        /// <summary>
-        /// Creates a new user with validated and sanitized data.
-        /// Uses parameterized queries (EF Core) to prevent SQL injection.
-        /// </summary>
-        public async Task<bool> CreateUserAsync(string username, string email, string passwordHash)
+        var normalizedUsername = InputValidationService.Normalize(user.Username);
+        var normalizedEmail = InputValidationService.Normalize(user.Email);
+
+        if (!InputValidationService.ValidateUsername(normalizedUsername))
         {
-            // Validate inputs
-            if (!InputValidationService.ValidateUsername(username))
-                throw new ArgumentException("Invalid username format.");
-
-            if (!InputValidationService.ValidateEmail(email))
-                throw new ArgumentException("Invalid email format.");
-
-            if (string.IsNullOrWhiteSpace(passwordHash))
-                throw new ArgumentException("Password hash cannot be empty.");
-
-            // Check if user already exists (parameterized query via EF)
-            var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == username || u.Email == email);
-
-            if (existingUser != null)
-                return false;
-
-            // Create and add user
-            var user = new User
-            {
-                Username = username,
-                Email = email,
-                PasswordHash = passwordHash
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return true;
+            throw new ArgumentException("Invalid username.", nameof(user));
         }
 
-        /// <summary>
-        /// Retrieves a user by username using parameterized query.
-        /// </summary>
-        public async Task<User?> GetUserByUsernameAsync(string username)
+        if (!InputValidationService.ValidateEmail(normalizedEmail))
         {
-            if (string.IsNullOrWhiteSpace(username))
-                return null;
-
-            // Parameterized query prevents SQL injection
-            return await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == username);
+            throw new ArgumentException("Invalid email.", nameof(user));
         }
 
-        /// <summary>
-        /// Retrieves a user by email using parameterized query.
-        /// </summary>
-        public async Task<User?> GetUserByEmailAsync(string email)
+        if (string.IsNullOrWhiteSpace(user.PasswordHash))
         {
-            if (string.IsNullOrWhiteSpace(email))
-                return null;
-
-            // Parameterized query prevents SQL injection
-            return await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
+            throw new ArgumentException("Password hash is required.", nameof(user));
         }
 
-        /// <summary>
-        /// Retrieves a user by ID using parameterized query.
-        /// </summary>
-        public async Task<User?> GetUserByIdAsync(int userId)
-        {
-            if (userId <= 0)
-                return null;
+        var exists = await _context.Users.AnyAsync(u =>
+            u.Username == normalizedUsername || u.Email == normalizedEmail
+        );
 
-            // Parameterized query prevents SQL injection
-            return await _context.Users.FindAsync(userId);
+        if (exists)
+        {
+            throw new InvalidOperationException("User already exists.");
         }
 
-        /// <summary>
-        /// Updates user email with validation and sanitization.
-        /// </summary>
-        public async Task<bool> UpdateUserEmailAsync(int userId, string newEmail)
+        user.Username = normalizedUsername;
+        user.Email = normalizedEmail;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        return user;
+    }
+
+    public async Task UpdateLastLoginAsync(int userId, DateTime loginAt)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user is null)
         {
-            if (!InputValidationService.ValidateEmail(newEmail))
-                throw new ArgumentException("Invalid email format.");
-
-            var user = await GetUserByIdAsync(userId);
-            if (user == null)
-                return false;
-
-            user.Email = newEmail;
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-            return true;
+            return;
         }
 
-        /// <summary>
-        /// Updates user with new data.
-        /// </summary>
-        public async Task<bool> UpdateUserAsync(User user)
-        {
-            if (user == null)
-                throw new ArgumentNullException(nameof(user));
+        user.LastLoginAt = loginAt;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
 
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-            return true;
+    public async Task<bool> UpdatePasswordHashAsync(int userId, string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+        {
+            throw new ArgumentException("Password hash is required.", nameof(passwordHash));
         }
 
-        /// <summary>
-        /// Retrieves all users (admin only).
-        /// </summary>
-        public async Task<List<User>> GetAllUsersAsync()
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+        if (user is null)
         {
-            return await _context.Users.ToListAsync();
+            return false;
         }
 
-        /// <summary>
-        /// Updates user role (admin only).
-        /// </summary>
-        public async Task<bool> UpdateUserRoleAsync(int userId, UserRole newRole)
+        user.PasswordHash = passwordHash;
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task RecordLoginAttemptAsync(int? userId, bool success, string? ipAddress)
+    {
+        var attempt = new LoginAttempt
         {
-            var user = await GetUserByIdAsync(userId);
-            if (user == null)
-                return false;
+            UserId = userId,
+            Success = success,
+            IpAddress = ipAddress,
+            AttemptTimestamp = DateTime.UtcNow,
+        };
 
-            user.Role = newRole;
-            _context.Users.Update(user);
-            await _context.SaveChangesAsync();
-            return true;
-        }
+        _context.LoginAttempts.Add(attempt);
+        await _context.SaveChangesAsync();
+    }
 
-        /// <summary>
-        /// Deletes a user by ID.
-        /// </summary>
-        public async Task<bool> DeleteUserAsync(int userId)
+    public async Task RecordRegistrationRequestAsync(
+        string username,
+        string email,
+        string passwordHash
+    )
+    {
+        var now = DateTime.UtcNow;
+        var request = new RegistrationRequest
         {
-            var user = await GetUserByIdAsync(userId);
-            if (user == null)
-                return false;
+            Username = username,
+            Email = email,
+            PasswordHash = passwordHash,
+            CreatedAt = now,
+            ExpiresAt = now.AddDays(1),
+            IsVerified = true,
+            VerificationToken = Guid.NewGuid().ToString("N"),
+        };
 
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-            return true;
-        }
+        _context.RegistrationRequests.Add(request);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RecordAuditLogAsync(int userId, string action)
+    {
+        var log = new AuditLog
+        {
+            UserId = userId,
+            Action = action,
+            Timestamp = DateTime.UtcNow,
+        };
+
+        _context.AuditLogs.Add(log);
+        await _context.SaveChangesAsync();
     }
 }

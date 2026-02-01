@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SafeVault</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+@inject SafeVault.Repositories.UserRepository UserRepository
+@inject SafeVault.Services.SessionService SessionService
+@{
+    var currentUser = await SessionHelper.GetUserAsync(Context.Request, SessionService, UserRepository);
+    var toastMessage = TempData["Toast"] as string;
+    var toastType = (TempData["ToastType"] as string ?? "info").ToLowerInvariant();
+    var toastClass = $"toast toast-{toastType}";
+}
+    <div class="page">
+        <header class="topbar">
+            <div class="brand">SafeVault</div>
+            <div class="topbar-actions">
+                <nav class="nav">
+                    @if (currentUser is null)
+                    {
+                        <a href="/auth/login">Login</a>
+                        <a href="/auth/register">Register</a>
+                    }
+                    else
+                    {
+                        <a href="/auth/me">Profile</a>
+                        @if (currentUser.Role == SafeVault.Models.UserRole.Admin)
+                        {
+                            <a href="/admin/dashboard">Admin</a>
+                            <a href="/admin/audit">Audit</a>
+                        }
+                    }
+                </nav>
+
+                @if (currentUser is not null)
+                {
+                    <div class="status">
+                        <span class="status-badge">@currentUser.Username</span>
+                        <span class="status-role">@currentUser.Role</span>
+                        <form action="/auth/logout" method="post">
+                            @Html.AntiForgeryToken()
+                            <button class="logout-btn" type="submit">Logout</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </header>
+
+        @if (!string.IsNullOrWhiteSpace(toastMessage))
+        {
+            <div class="@toastClass">@toastMessage</div>
+        }
+
+        <main class="content">
+            @RenderBody()
+        </main>
+
+        <footer class="footer">
+            <span>Secure access. Clear visibility.</span>
+        </footer>
+    </div>
+</body>
+</html>

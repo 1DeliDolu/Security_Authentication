@@ -1,43 +1,75 @@
-@{
-    ViewData["Title"] = "Admin Dashboard";
-}
+@model SafeVault.Models.AdminDashboardViewModel
 
-<div class="container mt-5">
-    <h2>Admin Dashboard</h2>
-
-    <div class="alert alert-info" role="alert">
-        <strong>Note:</strong> This page is restricted to users with admin role.
-    </div>
-
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">User Management</h5>
-                    <p class="card-text">Manage all users and their roles.</p>
-                    <a href="/admin/users" class="btn btn-primary">Manage Users</a>
-                </div>
-            </div>
+<section class="dashboard">
+    <div class="dashboard-head">
+        <div>
+            <p class="dashboard-kicker">Admin control</p>
+            <h1 class="dashboard-title">Dashboard</h1>
+            <p class="dashboard-subtitle">Manage users, access, and security in one view.</p>
         </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">System Settings</h5>
-                    <p class="card-text">Configure system-wide settings.</p>
-                    <a href="/admin/settings" class="btn btn-primary">Settings</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Audit Logs</h5>
-                    <p class="card-text">View system audit and access logs.</p>
-                    <a href="/admin/logs" class="btn btn-primary">View Logs</a>
-                </div>
-            </div>
+        <div class="dashboard-actions">
+            <a class="btn btn-secondary" href="/admin/audit">View audit report</a>
         </div>
     </div>
-</div>
+    <br />
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span class="stat-label">Total users</span>
+            <span class="stat-value">@Model.TotalUsers</span>
+            <span class="stat-meta">Admins: @Model.AdminUsers</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Active (24h)</span>
+            <span class="stat-value">@Model.ActiveLast24Hours</span>
+            <span class="stat-meta">Last 24 hours</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">New users</span>
+            <span class="stat-value">@Model.NewLast7Days</span>
+            <span class="stat-meta">Past 7 days</span>
+        </div>
+    </div>
+
+    <div class="dashboard-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Users</h2>
+                <p class="panel-subtitle">All registered accounts.</p>
+            </div>
+            <span class="panel-count">@Model.Users.Count users</span>
+        </div>
+
+        <div class="table-wrap">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                        <th>Last login</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        var roleClass = user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                        ? "badge-high"
+                        : "badge-low";
+                        <tr>
+                            <td>
+                                <div class="user-name">@user.Username</div>
+                                <div class="user-id">ID #@user.UserId</div>
+                            </td>
+                            <td>@user.Email</td>
+                            <td><span class="badge @roleClass">@user.Role</span></td>
+                            <td>@user.CreatedAt.ToString("yyyy-MM-dd")</td>
+                            <td>@(user.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

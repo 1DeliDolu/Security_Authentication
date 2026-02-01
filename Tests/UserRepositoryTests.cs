@@ -1,250 +1,120 @@
-using Xunit;
 using Microsoft.EntityFrameworkCore;
+using NUnit.Framework;
 using SafeVault.Data;
 using SafeVault.Models;
 using SafeVault.Repositories;
 using SafeVault.Services;
 
-namespace SafeVault.Tests
+namespace SafeVault.Tests;
+
+[TestFixture]
+public class UserRepositoryTests
 {
-    public class UserRepositoryTests
+    private static SafeVaultDbContext CreateContext()
     {
-        private SafeVaultDbContext CreateInMemoryContext()
-        {
-            var options = new DbContextOptionsBuilder<SafeVaultDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
+        var options = new DbContextOptionsBuilder<SafeVaultDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
 
-            return new SafeVaultDbContext(options);
-        }
+        return new SafeVaultDbContext(options);
+    }
 
-        #region SQL Injection Prevention Tests
+    [Test]
+    public async Task CreateUserAsync_InsertsUser()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var hash = AuthenticationService.HashPassword("SecurePass123!");
 
-        [Fact]
-        public async Task CreateUserAsync_SQLInjectionInUsername_Blocked()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            string maliciousUsername = "'; DROP TABLE Users; --";
-            string email = "test@example.com";
-            string passwordHash = "hashedPassword123";
-
-            // Act & Assert
-            // Invalid username format should prevent SQL injection
-            var exception = await Assert.ThrowsAsync<ArgumentException>(
-                () => repository.CreateUserAsync(maliciousUsername, email, passwordHash)
-            );
-
-            Assert.Contains("Invalid username", exception.Message);
-        }
-
-        [Fact]
-        public async Task GetUserByUsernameAsync_SQLInjectionPayload_NoExecution()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-
-            // Add a legitimate user first
-            var user = new User
+        var user = await repo.CreateUserAsync(
+            new User
             {
                 Username = "john_doe",
                 Email = "john@example.com",
-                PasswordHash = "hashedPassword"
-            };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
+                PasswordHash = hash,
+                Role = UserRole.User
+            }
+        );
 
-            // Act
-            // This SQL injection attempt should be treated as a literal string parameter
-            var result = await repository.GetUserByUsernameAsync("' OR '1'='1");
+        Assert.That(user.UserId, Is.GreaterThan(0));
+        var fetched = await repo.GetByUsernameAsync("john_doe");
+        Assert.That(fetched, Is.Not.Null);
+        Assert.That(fetched!.Email, Is.EqualTo("john@example.com"));
+    }
 
-            // Assert
-            Assert.Null(result); // No user should be returned from injection attempt
-        }
+    [Test]
+    public async Task CreateUserAsync_RejectsDuplicateUser()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var hash = AuthenticationService.HashPassword("SecurePass123!");
 
-        [Fact]
-        public async Task GetUserByEmailAsync_SQLInjectionEmail_NoExecution()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-
-            var user = new User
-            {
-                Username = "test_user",
-                Email = "test@example.com",
-                PasswordHash = "hashedPassword"
-            };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
-
-            // Act
-            // SQL injection payload should not execute
-            var result = await repository.GetUserByEmailAsync("test@example.com' OR '1'='1");
-
-            // Assert
-            Assert.Null(result);
-        }
-
-        #endregion
-
-        #region XSS Prevention Tests (Input Sanitization)
-
-        [Fact]
-        public void CreateUserAsync_XSSInUsername_InvalidFormat()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            string xssUsername = "<script>alert('XSS')</script>";
-            string email = "test@example.com";
-            string passwordHash = "hashedPassword";
-
-            // Act & Assert
-            // XSS payload in username should fail validation
-            var exception = Assert.ThrowsAsync<ArgumentException>(
-                () => repository.CreateUserAsync(xssUsername, email, passwordHash)
-            );
-
-            Assert.NotNull(exception);
-        }
-
-        [Fact]
-        public async Task UpdateUserEmailAsync_SanitizesInput()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-
-            var user = new User
+        await repo.CreateUserAsync(
+            new User
             {
                 Username = "john_doe",
                 Email = "john@example.com",
-                PasswordHash = "hashedPassword"
-            };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
+                PasswordHash = hash,
+                Role = UserRole.User
+            }
+        );
 
-            // Act
-            // Try to update with invalid email
-            var result = await repository.UpdateUserEmailAsync(user.UserId, "invalid-email");
+        Assert.That(
+            async () =>
+                await repo.CreateUserAsync(
+                    new User
+                    {
+                        Username = "john_doe",
+                        Email = "john2@example.com",
+                        PasswordHash = hash,
+                        Role = UserRole.User
+                    }
+                ),
+            Throws.TypeOf<InvalidOperationException>()
+        );
+    }
 
-            // Assert
-            Assert.False(result); // Should fail due to invalid email format
-        }
+    [Test]
+    public async Task GetByUsernameAsync_DoesNotAllowSqlInjection()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var hash = AuthenticationService.HashPassword("SecurePass123!");
 
-        #endregion
-
-        #region Parameterized Query Tests
-
-        [Fact]
-        public async Task CreateUserAsync_ValidInput_CreatesUser()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            string username = "john_doe";
-            string email = "john@example.com";
-            string passwordHash = "secureHashedPassword";
-
-            // Act
-            bool result = await repository.CreateUserAsync(username, email, passwordHash);
-
-            // Assert
-            Assert.True(result);
-            var createdUser = await context.Users.FirstOrDefaultAsync(u => u.Username == username);
-            Assert.NotNull(createdUser);
-            Assert.Equal(email, createdUser.Email);
-        }
-
-        [Fact]
-        public async Task GetUserByUsernameAsync_ValidUsername_ReturnsUser()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var user = new User
+        await repo.CreateUserAsync(
+            new User
             {
-                Username = "testuser",
-                Email = "test@example.com",
-                PasswordHash = "hashedPassword"
-            };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
-
-            // Act
-            var retrievedUser = await repository.GetUserByUsernameAsync("testuser");
-
-            // Assert
-            Assert.NotNull(retrievedUser);
-            Assert.Equal("testuser", retrievedUser.Username);
-        }
-
-        [Fact]
-        public async Task GetUserByIdAsync_ValidId_ReturnsUser()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var user = new User
-            {
-                Username = "john",
+                Username = "john_doe",
                 Email = "john@example.com",
-                PasswordHash = "hashedPassword"
-            };
-            context.Users.Add(user);
-            await context.SaveChangesAsync();
+                PasswordHash = hash,
+                Role = UserRole.User
+            }
+        );
 
-            // Act
-            var retrievedUser = await repository.GetUserByIdAsync(user.UserId);
+        var result = await repo.GetByUsernameAsync("' OR '1'='1");
 
-            // Assert
-            Assert.NotNull(retrievedUser);
-            Assert.Equal(user.UserId, retrievedUser.UserId);
-        }
+        Assert.That(result, Is.Null);
+    }
 
-        #endregion
+    [Test]
+    public async Task CreateUserAsync_RejectsXssPayloadInUsername()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var hash = AuthenticationService.HashPassword("SecurePass123!");
 
-        #region Duplicate User Prevention Tests
-
-        [Fact]
-        public async Task CreateUserAsync_DuplicateUsername_ReturnsFalse()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-
-            // Create first user
-            await repository.CreateUserAsync("john_doe", "john@example.com", "hash1");
-
-            // Act
-            // Try to create duplicate username
-            bool result = await repository.CreateUserAsync("john_doe", "different@example.com", "hash2");
-
-            // Assert
-            Assert.False(result);
-        }
-
-        [Fact]
-        public async Task CreateUserAsync_DuplicateEmail_ReturnsFalse()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-
-            // Create first user
-            await repository.CreateUserAsync("john_doe", "john@example.com", "hash1");
-
-            // Act
-            // Try to create duplicate email
-            bool result = await repository.CreateUserAsync("jane_doe", "john@example.com", "hash2");
-
-            // Assert
-            Assert.False(result);
-        }
-
-        #endregion
+        Assert.That(
+            async () =>
+                await repo.CreateUserAsync(
+                    new User
+                    {
+                        Username = "<script>alert(1)</script>",
+                        Email = "xss@example.com",
+                        PasswordHash = hash,
+                        Role = UserRole.User
+                    }
+                ),
+            Throws.TypeOf<ArgumentException>()
+        );
     }
 }

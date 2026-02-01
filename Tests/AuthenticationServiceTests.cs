@@ -1,233 +1,174 @@
-using Xunit;
-using SafeVault.Models;
+using Microsoft.EntityFrameworkCore;
+using NUnit.Framework;
+using SafeVault.Data;
+using SafeVault.Repositories;
 using SafeVault.Services;
 
-namespace SafeVault.Tests
+namespace SafeVault.Tests;
+
+[TestFixture]
+public class AuthenticationServiceTests
 {
-    public class AuthenticationServiceTests
+    private static SafeVaultDbContext CreateContext()
     {
-        #region Password Hashing & Verification Tests
+        var options = new DbContextOptionsBuilder<SafeVaultDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
 
-        [Fact]
-        public void HashPassword_CreatesValidHash()
-        {
-            // Arrange
-            string password = "SecurePassword123!";
+        return new SafeVaultDbContext(options);
+    }
 
-            // Act
-            string hash = AuthenticationService.HashPassword(password);
+    [Test]
+    public void HashPassword_UsesUniqueSalt()
+    {
+        var hash1 = AuthenticationService.HashPassword("SecurePass123!");
+        var hash2 = AuthenticationService.HashPassword("SecurePass123!");
 
-            // Assert
-            Assert.NotNull(hash);
-            Assert.NotEmpty(hash);
-            Assert.NotEqual(password, hash);
-        }
+        Assert.That(hash1, Is.Not.EqualTo(hash2));
+    }
 
-        [Fact]
-        public void HashPassword_SamePasswordProducesDifferentHashes()
-        {
-            // Arrange
-            string password = "SecurePassword123!";
+    [Test]
+    public void VerifyPassword_ReturnsTrueForCorrectPassword()
+    {
+        var hash = AuthenticationService.HashPassword("SecurePass123!");
 
-            // Act
-            string hash1 = AuthenticationService.HashPassword(password);
-            string hash2 = AuthenticationService.HashPassword(password);
+        Assert.That(AuthenticationService.VerifyPassword("SecurePass123!", hash), Is.True);
+    }
 
-            // Assert
-            // Hashes should be different due to random salt
-            Assert.NotEqual(hash1, hash2);
-        }
+    [Test]
+    public void VerifyPassword_ReturnsFalseForWrongPassword()
+    {
+        var hash = AuthenticationService.HashPassword("SecurePass123!");
 
-        [Fact]
-        public void VerifyPassword_CorrectPassword_ReturnsTrue()
-        {
-            // Arrange
-            string password = "SecurePassword123!";
-            string hash = AuthenticationService.HashPassword(password);
+        Assert.That(AuthenticationService.VerifyPassword("WrongPass123!", hash), Is.False);
+    }
 
-            // Act
-            bool result = AuthenticationService.VerifyPassword(password, hash);
+    [Test]
+    public async Task RegisterAsync_CreatesUserWithHashedPassword()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-            // Assert
-            Assert.True(result);
-        }
+        var result = await auth.RegisterAsync("john_doe", "john@example.com", "SecurePass123!");
+        Assert.That(result, Is.True);
 
-        [Fact]
-        public void VerifyPassword_IncorrectPassword_ReturnsFalse()
-        {
-            // Arrange
-            string password = "SecurePassword123!";
-            string wrongPassword = "WrongPassword123!";
-            string hash = AuthenticationService.HashPassword(password);
+        var user = await repo.GetByUsernameAsync("john_doe");
+        Assert.That(user, Is.Not.Null);
+        Assert.That(user!.PasswordHash, Is.Not.Empty);
+        Assert.That(user.PasswordHash, Is.Not.EqualTo("SecurePass123!"));
+        Assert.That(user.Role.ToString(), Is.EqualTo("User"));
+    }
 
-            // Act
-            bool result = AuthenticationService.VerifyPassword(wrongPassword, hash);
+    [Test]
+    public void RegisterAsync_RejectsInvalidUsername()
+    {
+        using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-            // Assert
-            Assert.False(result);
-        }
+        Assert.That(
+            async () => await auth.RegisterAsync("ab", "john@example.com", "SecurePass123!"),
+            Throws.TypeOf<ArgumentException>()
+        );
+    }
 
-        [Fact]
-        public void VerifyPassword_InvalidHash_ReturnsFalse()
-        {
-            // Arrange
-            string password = "SecurePassword123!";
-            string invalidHash = "invalid-base64-hash!@#$%";
+    [Test]
+    public void RegisterAsync_RejectsInvalidEmail()
+    {
+        using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-            // Act
-            bool result = AuthenticationService.VerifyPassword(password, invalidHash);
+        Assert.That(
+            async () => await auth.RegisterAsync("john_doe", "bad-email", "SecurePass123!"),
+            Throws.TypeOf<ArgumentException>()
+        );
+    }
 
-            // Assert
-            Assert.False(result);
-        }
+    [Test]
+    public void RegisterAsync_RejectsWeakPassword()
+    {
+        using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-        #endregion
+        Assert.That(
+            async () => await auth.RegisterAsync("john_doe", "john@example.com", "weak"),
+            Throws.TypeOf<ArgumentException>()
+        );
+    }
 
-        #region Authentication Tests
+    [Test]
+    public async Task RegisterAsync_RejectsDuplicateUsername()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-        [Fact]
-        public async Task AuthenticateAsync_ValidCredentials_ReturnsUser()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
+        await auth.RegisterAsync("john_doe", "john@example.com", "SecurePass123!");
 
-            // Create and register user
-            string username = "testuser";
-            string email = "test@example.com";
-            string password = "SecurePassword123!";
+        Assert.That(
+            async () => await auth.RegisterAsync("john_doe", "john2@example.com", "SecurePass123!"),
+            Throws.TypeOf<InvalidOperationException>()
+        );
+    }
 
-            await authService.RegisterAsync(username, email, password);
+    [Test]
+    public async Task RegisterAsync_RejectsDuplicateEmail()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-            // Act
-            var result = await authService.AuthenticateAsync(username, password);
+        await auth.RegisterAsync("john_doe", "john@example.com", "SecurePass123!");
 
-            // Assert
-            Assert.NotNull(result);
-            Assert.Equal(username, result.Username);
-            Assert.Equal(email, result.Email);
-        }
+        Assert.That(
+            async () => await auth.RegisterAsync("john2", "john@example.com", "SecurePass123!"),
+            Throws.TypeOf<InvalidOperationException>()
+        );
+    }
 
-        [Fact]
-        public async Task AuthenticateAsync_InvalidPassword_ReturnsNull()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
+    [Test]
+    public async Task AuthenticateAsync_ReturnsNullForUnknownUser()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-            string username = "testuser";
-            string email = "test@example.com";
-            string password = "SecurePassword123!";
+        var user = await auth.AuthenticateAsync("missing", "SecurePass123!");
 
-            await authService.RegisterAsync(username, email, password);
+        Assert.That(user, Is.Null);
+    }
 
-            // Act
-            var result = await authService.AuthenticateAsync(username, "WrongPassword123!");
+    [Test]
+    public async Task AuthenticateAsync_ReturnsNullForWrongPassword()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-            // Assert
-            Assert.Null(result);
-        }
+        await auth.RegisterAsync("john_doe", "john@example.com", "SecurePass123!");
 
-        [Fact]
-        public async Task AuthenticateAsync_NonexistentUser_ReturnsNull()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
+        var user = await auth.AuthenticateAsync("john_doe", "WrongPass123!");
 
-            // Act
-            var result = await authService.AuthenticateAsync("nonexistent", "password123");
+        Assert.That(user, Is.Null);
+    }
 
-            // Assert
-            Assert.Null(result);
-        }
+    [Test]
+    public async Task AuthenticateAsync_UpdatesLastLoginAt()
+    {
+        await using var context = CreateContext();
+        var repo = new UserRepository(context);
+        var auth = new AuthenticationService(repo);
 
-        [Fact]
-        public async Task AuthenticateAsync_InvalidUsername_ReturnsNull()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
+        await auth.RegisterAsync("john_doe", "john@example.com", "SecurePass123!");
 
-            // Act
-            var result = await authService.AuthenticateAsync("invalid@user!", "password123");
+        var before = DateTime.UtcNow;
+        var user = await auth.AuthenticateAsync("john_doe", "SecurePass123!");
 
-            // Assert
-            Assert.Null(result);
-        }
-
-        #endregion
-
-        #region Registration Tests
-
-        [Fact]
-        public async Task RegisterAsync_ValidData_CreatesUser()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
-
-            string username = "newuser";
-            string email = "new@example.com";
-            string password = "SecurePassword123!";
-
-            // Act
-            bool result = await authService.RegisterAsync(username, email, password);
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public async Task RegisterAsync_WeakPassword_ThrowsException()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
-
-            string username = "newuser";
-            string email = "new@example.com";
-            string weakPassword = "weak"; // Fails password strength validation
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => authService.RegisterAsync(username, email, weakPassword)
-            );
-        }
-
-        [Fact]
-        public async Task RegisterAsync_InvalidEmail_ThrowsException()
-        {
-            // Arrange
-            var context = CreateInMemoryContext();
-            var repository = new UserRepository(context);
-            var authService = new AuthenticationService(repository);
-
-            string username = "newuser";
-            string invalidEmail = "not-an-email";
-            string password = "SecurePassword123!";
-
-            // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => authService.RegisterAsync(username, invalidEmail, password)
-            );
-        }
-
-        #endregion
-
-        private SafeVaultDbContext CreateInMemoryContext()
-        {
-            var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<SafeVaultDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
-
-            return new SafeVaultDbContext(options);
-        }
+        Assert.That(user, Is.Not.Null);
+        Assert.That(user!.LastLoginAt, Is.Not.Null);
+        Assert.That(user.LastLoginAt, Is.GreaterThanOrEqualTo(before));
     }
 }

@@ -1,0 +1,54 @@
+@model SafeVault.Models.UserProfileResponse
+
+<section class="auth-card">
+    <h1 class="auth-title">Welcome, @Model.Username</h1>
+    <p class="auth-subtitle">Here is your account snapshot.</p>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <ul class="error-list">
+            @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+            {
+                <li>@error.ErrorMessage</li>
+            }
+        </ul>
+    }
+
+    <dl class="profile-grid">
+        <dt>Email</dt>
+        <dd>@Model.Email</dd>
+        <dt>Role</dt>
+        <dd>@Model.Role</dd>
+        <dt>Last Login</dt>
+        <dd>@(Model.LastLoginAt?.ToString("u") ?? "-")</dd>
+    </dl>
+
+    <h2 class="auth-subtitle">Update your password</h2>
+    <form class="form-grid" action="/auth/me/password" method="post">
+        @Html.AntiForgeryToken()
+        <div>
+            <label for="current-password">Current password</label>
+            <input type="password" id="current-password" name="CurrentPassword" required minlength="8"
+                autocomplete="current-password">
+        </div>
+
+        <div>
+            <label for="new-password">New password</label>
+            <input type="password" id="new-password" name="NewPassword" required minlength="8"
+                autocomplete="new-password">
+        </div>
+
+        <div>
+            <label for="confirm-password">Confirm new password</label>
+            <input type="password" id="confirm-password" name="ConfirmPassword" required minlength="8"
+                autocomplete="new-password">
+        </div>
+
+        <button class="btn" type="submit">Update Password</button>
+    </form>
+    <br />
+    <form action="/auth/logout" method="post">
+        @Html.AntiForgeryToken()
+        <button class="btn" type="submit">Logout</button>
+    </form>
+</section>

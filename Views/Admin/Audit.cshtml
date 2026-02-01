@@ -1,0 +1,50 @@
+@model IReadOnlyList<SafeVault.Services.SecurityAuditFinding>
+
+<section class="auth-card">
+    <h1 class="auth-title">Security Audit Report</h1>
+    <p class="auth-subtitle">Overview of critical and high-risk checks.</p>
+
+    @if (Model.Count == 0)
+    {
+        <p>No audit findings available.</p>
+    }
+    else
+    {
+        <div class="audit-summary">
+            <span>Total: @Model.Count</span>
+            <span>Resolved: @Model.Count(f => f.IsResolved)</span>
+            <span>Unresolved: @Model.Count(f => !f.IsResolved)</span>
+        </div>
+
+        <table class="audit-table">
+            <thead>
+                <tr>
+                    <th>Finding</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var finding in Model)
+            {
+                var statusClass = finding.IsResolved ? "badge-success" : "badge-error";
+                var severityClass = finding.Severity switch
+                {
+                    SafeVault.Services.SecuritySeverity.Critical => "badge-critical",
+                    SafeVault.Services.SecuritySeverity.High => "badge-high",
+                    SafeVault.Services.SecuritySeverity.Medium => "badge-medium",
+                    _ => "badge-low"
+                };
+                <tr>
+                    <td>
+                        <div class="audit-title">@finding.Title</div>
+                        <div class="audit-detail">@finding.Details</div>
+                    </td>
+                    <td><span class="badge @severityClass">@finding.Severity</span></td>
+                    <td><span class="badge @statusClass">@(finding.IsResolved ? "Resolved" : "Unresolved")</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+</section>

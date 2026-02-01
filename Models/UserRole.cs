@@ -1,11 +1,7 @@
-namespace SafeVault.Models
+namespace SafeVault.Models;
+
+public enum UserRole
 {
-    /// <summary>
-    /// User roles for role-based access control (RBAC)
-    /// </summary>
-    public enum UserRole
-    {
-        User = 0,
-        Admin = 1
-    }
+    Admin,
+    User,
 }

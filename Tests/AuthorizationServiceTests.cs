@@ -1,327 +1,113 @@
-using Xunit;
+using NUnit.Framework;
 using SafeVault.Models;
 using SafeVault.Services;
 
-namespace SafeVault.Tests
+namespace SafeVault.Tests;
+
+[TestFixture]
+public class AuthorizationServiceTests
 {
-    public class AuthorizationServiceTests
+    private static User CreateUser(UserRole role)
     {
-        #region Role Checking Tests
-
-        [Fact]
-        public void HasRole_AdminUserWithAdminRole_ReturnsTrue()
+        return new User
         {
-            // Arrange
-            var user = new User
-            {
-                UserId = 1,
-                Username = "admin",
-                Email = "admin@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.Admin
-            };
+            Username = "jane_doe",
+            Email = "jane@example.com",
+            Role = role,
+        };
+    }
 
-            // Act
-            bool result = AuthorizationService.HasRole(user, UserRole.Admin);
+    [Test]
+    public void IsAdmin_ReturnsTrueForAdmin()
+    {
+        var admin = CreateUser(UserRole.Admin);
 
-            // Assert
-            Assert.True(result);
-        }
+        Assert.That(AuthorizationService.IsAdmin(admin), Is.True);
+    }
 
-        [Fact]
-        public void HasRole_RegularUserWithAdminRole_ReturnsFalse()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
+    [Test]
+    public void IsAdmin_ReturnsFalseForUser()
+    {
+        var user = CreateUser(UserRole.User);
 
-            // Act
-            bool result = AuthorizationService.HasRole(user, UserRole.Admin);
+        Assert.That(AuthorizationService.IsAdmin(user), Is.False);
+    }
 
-            // Assert
-            Assert.False(result);
-        }
+    [Test]
+    public void CanAccessResource_AdminDashboard_AllowsAdmin()
+    {
+        var admin = CreateUser(UserRole.Admin);
 
-        [Fact]
-        public void HasRole_NullUser_ReturnsFalse()
-        {
-            // Act
-            bool result = AuthorizationService.HasRole(null, UserRole.Admin);
+        Assert.That(AuthorizationService.CanAccessResource(admin, "admin-dashboard"), Is.True);
+    }
 
-            // Assert
-            Assert.False(result);
-        }
+    [Test]
+    public void CanAccessResource_AdminDashboard_DeniesUser()
+    {
+        var user = CreateUser(UserRole.User);
 
-        #endregion
+        Assert.That(AuthorizationService.CanAccessResource(user, "admin-dashboard"), Is.False);
+    }
 
-        #region Admin Check Tests
+    [Test]
+    public void CanAccessResource_UserProfile_AllowsUser()
+    {
+        var user = CreateUser(UserRole.User);
 
-        [Fact]
-        public void IsAdmin_AdminUser_ReturnsTrue()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 1,
-                Username = "admin",
-                Email = "admin@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.Admin
-            };
+        Assert.That(AuthorizationService.CanAccessResource(user, "user-profile"), Is.True);
+    }
 
-            // Act
-            bool result = AuthorizationService.IsAdmin(user);
+    [Test]
+    public void CanAccessResource_UserProfile_AllowsAdmin()
+    {
+        var admin = CreateUser(UserRole.Admin);
 
-            // Assert
-            Assert.True(result);
-        }
+        Assert.That(AuthorizationService.CanAccessResource(admin, "user-profile"), Is.True);
+    }
 
-        [Fact]
-        public void IsAdmin_RegularUser_ReturnsFalse()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
+    [Test]
+    public void CanAccessResource_NullUser_DeniesAccess()
+    {
+        Assert.That(AuthorizationService.CanAccessResource(null, "admin-dashboard"), Is.False);
+    }
 
-            // Act
-            bool result = AuthorizationService.IsAdmin(user);
+    [Test]
+    public void AuthorizeAction_ManageUsers_AllowsAdmin()
+    {
+        var admin = CreateUser(UserRole.Admin);
 
-            // Assert
-            Assert.False(result);
-        }
+        Assert.That(AuthorizationService.AuthorizeAction(admin, "manage-users"), Is.True);
+    }
 
-        [Fact]
-        public void IsAdmin_NullUser_ReturnsFalse()
-        {
-            // Act
-            bool result = AuthorizationService.IsAdmin(null);
+    [Test]
+    public void AuthorizeAction_ManageUsers_DeniesUser()
+    {
+        var user = CreateUser(UserRole.User);
 
-            // Assert
-            Assert.False(result);
-        }
+        Assert.That(AuthorizationService.AuthorizeAction(user, "manage-users"), Is.False);
+    }
 
-        #endregion
+    [Test]
+    public void AuthorizeAction_EditOwnProfile_AllowsUser()
+    {
+        var user = CreateUser(UserRole.User);
 
-        #region Regular User Check Tests
+        Assert.That(AuthorizationService.AuthorizeAction(user, "edit-own-profile"), Is.True);
+    }
 
-        [Fact]
-        public void IsRegularUser_UserWithUserRole_ReturnsTrue()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
+    [Test]
+    public void AuthorizeAction_EditOwnProfile_AllowsAdmin()
+    {
+        var admin = CreateUser(UserRole.Admin);
 
-            // Act
-            bool result = AuthorizationService.IsRegularUser(user);
+        Assert.That(AuthorizationService.AuthorizeAction(admin, "edit-own-profile"), Is.True);
+    }
 
-            // Assert
-            Assert.True(result);
-        }
+    [Test]
+    public void AuthorizeAction_UnknownAction_DeniesAccess()
+    {
+        var admin = CreateUser(UserRole.Admin);
 
-        [Fact]
-        public void IsRegularUser_AdminUser_ReturnsFalse()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 1,
-                Username = "admin",
-                Email = "admin@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.Admin
-            };
-
-            // Act
-            bool result = AuthorizationService.IsRegularUser(user);
-
-            // Assert
-            Assert.False(result);
-        }
-
-        #endregion
-
-        #region Resource Access Tests
-
-        [Theory]
-        [InlineData("admin-dashboard")]
-        [InlineData("settings")]
-        public void CanAccessResource_AdminAccessingAdminResources_ReturnsTrue(string resource)
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 1,
-                Username = "admin",
-                Email = "admin@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.Admin
-            };
-
-            // Act
-            bool result = AuthorizationService.CanAccessResource(user, resource);
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void CanAccessResource_RegularUserAccessingAdminDashboard_ReturnsFalse()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
-
-            // Act
-            bool result = AuthorizationService.CanAccessResource(user, "admin-dashboard");
-
-            // Assert
-            Assert.False(result);
-        }
-
-        [Fact]
-        public void CanAccessResource_RegularUserAccessingUserProfile_ReturnsTrue()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
-
-            // Act
-            bool result = AuthorizationService.CanAccessResource(user, "user-profile");
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void CanAccessResource_UnknownResource_ReturnsFalse()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 1,
-                Username = "admin",
-                Email = "admin@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.Admin
-            };
-
-            // Act
-            bool result = AuthorizationService.CanAccessResource(user, "unknown-resource");
-
-            // Assert
-            Assert.False(result);
-        }
-
-        #endregion
-
-        #region Action Authorization Tests
-
-        [Theory]
-        [InlineData("manage-users")]
-        [InlineData("view-audit-logs")]
-        [InlineData("manage-roles")]
-        public void AuthorizeAction_AdminActions_ReturnsTrue(string action)
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 1,
-                Username = "admin",
-                Email = "admin@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.Admin
-            };
-
-            // Act
-            bool result = AuthorizationService.AuthorizeAction(user, action);
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void AuthorizeAction_RegularUserManageUsers_ReturnsFalse()
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
-
-            // Act
-            bool result = AuthorizationService.AuthorizeAction(user, "manage-users");
-
-            // Assert
-            Assert.False(result);
-        }
-
-        [Theory]
-        [InlineData("view-own-profile")]
-        [InlineData("edit-own-profile")]
-        [InlineData("delete-own-account")]
-        public void AuthorizeAction_UserActions_ReturnsTrue(string action)
-        {
-            // Arrange
-            var user = new User
-            {
-                UserId = 2,
-                Username = "user",
-                Email = "user@example.com",
-                PasswordHash = "hash",
-                Role = UserRole.User
-            };
-
-            // Act
-            bool result = AuthorizationService.AuthorizeAction(user, action);
-
-            // Assert
-            Assert.True(result);
-        }
-
-        [Fact]
-        public void AuthorizeAction_NullUser_ReturnsFalse()
-        {
-            // Act
-            bool result = AuthorizationService.AuthorizeAction(null, "view-own-profile");
-
-            // Assert
-            Assert.False(result);
-        }
-
-        #endregion
+        Assert.That(AuthorizationService.AuthorizeAction(admin, "unknown-action"), Is.False);
     }
 }

@@ -1,80 +1,80 @@
 using SafeVault.Models;
 
-namespace SafeVault.Services
+namespace SafeVault.Services;
+
+public static class AuthorizationService
 {
-    /// <summary>
-    /// Authorization service providing role-based access control (RBAC).
-    /// Determines whether a user has permission to perform specific actions.
-    /// </summary>
-    public class AuthorizationService
+    private static readonly HashSet<string> AdminResources = new(StringComparer.OrdinalIgnoreCase)
     {
-        /// <summary>
-        /// Checks if a user has a specific role.
-        /// </summary>
-        public static bool HasRole(User? user, UserRole requiredRole)
-        {
-            if (user == null)
-                return false;
+        "admin-dashboard",
+        "admin",
+        "audit-logs",
+        "system-settings",
+    };
 
-            return user.Role == requiredRole || user.Role == UserRole.Admin;
+    private static readonly HashSet<string> SharedResources = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "user-data",
+        "user-profile",
+    };
+
+    private static readonly HashSet<string> AdminActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "manage-users",
+        "view-audit-logs",
+        "manage-roles",
+        "view-system-settings",
+    };
+
+    private static readonly HashSet<string> UserActions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "view-own-profile",
+        "edit-own-profile",
+        "delete-own-account",
+    };
+
+    public static bool IsAdmin(User? user)
+    {
+        return user?.Role == UserRole.Admin;
+    }
+
+    public static bool CanAccessResource(User? user, string resource)
+    {
+        if (user is null || string.IsNullOrWhiteSpace(resource))
+        {
+            return false;
         }
 
-        /// <summary>
-        /// Checks if a user is an admin.
-        /// </summary>
-        public static bool IsAdmin(User? user)
+        if (AdminResources.Contains(resource))
         {
-            return user?.Role == UserRole.Admin;
+            return IsAdmin(user);
         }
 
-        /// <summary>
-        /// Checks if a user is a regular user.
-        /// </summary>
-        public static bool IsRegularUser(User? user)
+        if (SharedResources.Contains(resource))
         {
-            return user?.Role == UserRole.User;
+            return true;
         }
 
-        /// <summary>
-        /// Checks if a user has permission to access a protected resource.
-        /// </summary>
-        public static bool CanAccessResource(User? user, string resourceName)
-        {
-            if (user == null)
-                return false;
+        return false;
+    }
 
-            // Define resource access rules
-            return resourceName switch
-            {
-                "admin-dashboard" => IsAdmin(user),
-                "user-profile" => user != null,
-                "settings" => IsAdmin(user),
-                "user-data" => user != null,
-                _ => false
-            };
+    public static bool AuthorizeAction(User? user, string action)
+    {
+        if (user is null || string.IsNullOrWhiteSpace(action))
+        {
+            return false;
         }
 
-        /// <summary>
-        /// Authorizes a user to perform an action.
-        /// Returns true if authorized, false otherwise.
-        /// </summary>
-        public static bool AuthorizeAction(User? user, string action)
+        if (AdminActions.Contains(action))
         {
-            if (user == null)
-                return false;
-
-            return action switch
-            {
-                "view-own-profile" => user != null,
-                "edit-own-profile" => user != null,
-                "delete-own-account" => user != null,
-                "manage-users" => IsAdmin(user),
-                "view-audit-logs" => IsAdmin(user),
-                "manage-roles" => IsAdmin(user),
-                "view-system-settings" => IsAdmin(user),
-                "edit-system-settings" => IsAdmin(user),
-                _ => false
-            };
+            return IsAdmin(user);
         }
+
+        if (UserActions.Contains(action))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

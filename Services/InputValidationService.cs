@@ -1,74 +1,76 @@
+using System.Net;
 using System.Text.RegularExpressions;
 
-namespace SafeVault.Services
+namespace SafeVault.Services;
+
+public static class InputValidationService
 {
-    /// <summary>
-    /// Provides secure input validation and sanitization to prevent XSS attacks.
-    /// </summary>
-    public class InputValidationService
+    private static readonly Regex UsernameRegex = new(
+        @"^[a-zA-Z0-9_]{3,50}$",
+        RegexOptions.Compiled
+    );
+    private static readonly Regex EmailRegex = new(
+        @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+        RegexOptions.Compiled
+    );
+    private static readonly Regex PasswordRegex = new(
+        @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$",
+        RegexOptions.Compiled
+    );
+    private static readonly char[] EmailDisallowedChars = { '<', '>', '"', '\'' };
+
+    public static bool ValidateUsername(string? username)
     {
-        /// <summary>
-        /// Validates username: alphanumeric + underscore, 3-50 chars
-        /// </summary>
-        public static bool ValidateUsername(string? username)
+        if (string.IsNullOrWhiteSpace(username))
         {
-            if (string.IsNullOrWhiteSpace(username))
-                return false;
-
-            if (username.Length < 3 || username.Length > 50)
-                return false;
-
-            // Allow only alphanumeric and underscore
-            return Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$");
+            return false;
         }
 
-        /// <summary>
-        /// Validates email format
-        /// </summary>
-        public static bool ValidateEmail(string? email)
-        {
-            if (string.IsNullOrWhiteSpace(email))
-                return false;
+        return UsernameRegex.IsMatch(username);
+    }
 
-            try
-            {
-                var addr = new System.Net.Mail.MailAddress(email);
-                return addr.Address == email && email.Length <= 100;
-            }
-            catch
-            {
-                return false;
-            }
+    public static bool ValidateEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return false;
         }
 
-        /// <summary>
-        /// Sanitizes HTML input to prevent XSS attacks by escaping dangerous characters
-        /// </summary>
-        public static string SanitizeHtml(string? input)
+        if (email.Length > 100)
         {
-            if (string.IsNullOrEmpty(input))
-                return string.Empty;
-
-            return System.Net.WebUtility.HtmlEncode(input);
+            return false;
         }
 
-        /// <summary>
-        /// Validates password strength: min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit, 1 special
-        /// </summary>
-        public static bool ValidatePasswordStrength(string? password)
+        if (email.IndexOfAny(EmailDisallowedChars) >= 0)
         {
-            if (string.IsNullOrWhiteSpace(password))
-                return false;
-
-            if (password.Length < 8)
-                return false;
-
-            bool hasUpperCase = Regex.IsMatch(password, @"[A-Z]");
-            bool hasLowerCase = Regex.IsMatch(password, @"[a-z]");
-            bool hasDigit = Regex.IsMatch(password, @"[\d]");
-            bool hasSpecialChar = Regex.IsMatch(password, @"[!@#$%^&*()_+\-=\[\]{};':""\|,.<>\/?]");
-
-            return hasUpperCase && hasLowerCase && hasDigit && hasSpecialChar;
+            return false;
         }
+
+        return EmailRegex.IsMatch(email);
+    }
+
+    public static bool ValidatePassword(string? password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return false;
+        }
+
+        return PasswordRegex.IsMatch(password);
+    }
+
+    public static string SanitizeHtml(string? input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return string.Empty;
+        }
+
+        return WebUtility.HtmlEncode(input);
+    }
+
+    public static string Normalize(string input)
+    {
+        return input.Trim();
     }
 }

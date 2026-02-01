@@ -1,123 +1,208 @@
-using SafeVault.Models;
 using System.Security.Cryptography;
-using System.Text;
+using SafeVault.Models;
+using SafeVault.Repositories;
 
-namespace SafeVault.Services
+namespace SafeVault.Services;
+
+public class AuthenticationService
 {
-    /// <summary>
-    /// Authentication service with bcrypt-style secure password hashing.
-    /// Handles user login and password verification.
-    /// </summary>
-    public class AuthenticationService(AuthenticationService.UserRepository userRepository)
+    private const int Iterations = 10_000;
+    private const int SaltSize = 16;
+    private const int KeySize = 32;
+
+    private readonly UserRepository _userRepository;
+
+    public AuthenticationService(UserRepository userRepository)
     {
-        private const int SaltSize = 16;
-        private const int HashSize = 20;
-        private const int Iterations = 10000;
+        _userRepository = userRepository;
+    }
 
-        /// <summary>
-        /// Hashes a password securely using PBKDF2 with SHA256.
-        /// This is a simplified version; production should use bcrypt or Argon2.
-        /// </summary>
-        public static string HashPassword(string password)
+    public static string HashPassword(string password)
+    {
+        if (string.IsNullOrWhiteSpace(password))
         {
-            using (var rng = new RNGCryptoServiceProvider())
-            {
-                byte[] salt = new byte[SaltSize];
-                rng.GetBytes(salt);
-
-                using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
-                {
-                    byte[] hash = pbkdf2.GetBytes(HashSize);
-
-                    byte[] hashWithSalt = new byte[SaltSize + HashSize];
-                    Array.Copy(salt, 0, hashWithSalt, 0, SaltSize);
-                    Array.Copy(hash, 0, hashWithSalt, SaltSize, HashSize);
-
-                    return Convert.ToBase64String(hashWithSalt);
-                }
-            }
+            throw new ArgumentException("Password is required.", nameof(password));
         }
 
-        /// <summary>
-        /// Verifies a plain text password against a stored hash.
-        /// </summary>
-        public static bool VerifyPassword(string password, string hash)
+        var salt = RandomNumberGenerator.GetBytes(SaltSize);
+        using var pbkdf2 = new Rfc2898DeriveBytes(
+            password,
+            salt,
+            Iterations,
+            HashAlgorithmName.SHA256
+        );
+        var hash = pbkdf2.GetBytes(KeySize);
+
+        return $"{Convert.ToBase64String(salt)}.{Convert.ToBase64String(hash)}";
+    }
+
+    public static bool VerifyPassword(string password, string storedHash)
+    {
+        if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(storedHash))
         {
-            try
-            {
-                byte[] hashBytes = Convert.FromBase64String(hash);
-
-                byte[] salt = new byte[SaltSize];
-                Array.Copy(hashBytes, 0, salt, 0, SaltSize);
-
-                using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
-                {
-                    byte[] computedHash = pbkdf2.GetBytes(HashSize);
-
-                    for (int i = 0; i < HashSize; i++)
-                    {
-                        if (hashBytes[i + SaltSize] != computedHash[i])
-                        {
-                            return false;
-                        }
-                    }
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            return false;
         }
 
-        /// <summary>
-        /// Authenticates a user by username and password.
-        /// Returns the user if authentication succeeds, null otherwise.
-        /// </summary>
-        public async Task<User?> AuthenticateAsync(string username, string password)
+        var parts = storedHash.Split('.', 2);
+        if (parts.Length != 2)
         {
-            if (!InputValidationService.ValidateUsername(username))
-                return null;
-
-            if (string.IsNullOrWhiteSpace(password))
-                return null;
-
-            var user = await userRepository.GetUserByUsernameAsync(username);
-            if (user == null)
-                return null;
-
-            if (!VerifyPassword(password, user.PasswordHash))
-                return null;
-
-            // Update last login time
-            user.LastLoginAt = DateTime.UtcNow;
-            await userRepository.UpdateUserAsync(user);
-
-            return user;
+            return false;
         }
 
-        /// <summary>
-        /// Registers a new user with secure password hashing.
-        /// </summary>
-        public async Task<bool> RegisterAsync(string username, string email, string password)
+        byte[] salt;
+        byte[] expectedHash;
+
+        try
         {
-            if (!InputValidationService.ValidateUsername(username))
-                throw new ArgumentException("Invalid username format.");
-
-            if (!InputValidationService.ValidateEmail(email))
-                throw new ArgumentException("Invalid email format.");
-
-            if (!InputValidationService.ValidatePasswordStrength(password))
-                throw new ArgumentException("Password does not meet strength requirements.");
-
-            string passwordHash = HashPassword(password);
-
-            return await userRepository.CreateUserAsync(username, email, passwordHash);
+            salt = Convert.FromBase64String(parts[0]);
+            expectedHash = Convert.FromBase64String(parts[1]);
+        }
+        catch (FormatException)
+        {
+            return false;
         }
 
-        private class UserRepository
+        using var pbkdf2 = new Rfc2898DeriveBytes(
+            password,
+            salt,
+            Iterations,
+            HashAlgorithmName.SHA256
+        );
+        var actualHash = pbkdf2.GetBytes(expectedHash.Length);
+
+        return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+    }
+
+    public async Task<bool> RegisterAsync(
+        string username,
+        string email,
+        string password,
+        UserRole role = UserRole.User
+    )
+    {
+        var normalizedUsername = InputValidationService.Normalize(username);
+        var normalizedEmail = InputValidationService.Normalize(email);
+
+        if (!InputValidationService.ValidateUsername(normalizedUsername))
         {
+            throw new ArgumentException("Invalid username.", nameof(username));
         }
+
+        if (!InputValidationService.ValidateEmail(normalizedEmail))
+        {
+            throw new ArgumentException("Invalid email.", nameof(email));
+        }
+
+        if (!InputValidationService.ValidatePassword(password))
+        {
+            throw new ArgumentException("Invalid password.", nameof(password));
+        }
+
+        var existing = await _userRepository.GetByUsernameAsync(normalizedUsername);
+        if (existing is not null)
+        {
+            throw new InvalidOperationException("User already exists.");
+        }
+
+        var existingEmail = await _userRepository.GetByEmailAsync(normalizedEmail);
+        if (existingEmail is not null)
+        {
+            throw new InvalidOperationException("User already exists.");
+        }
+
+        var hash = HashPassword(password);
+        var user = new User
+        {
+            Username = normalizedUsername,
+            Email = normalizedEmail,
+            PasswordHash = hash,
+            Role = role,
+        };
+
+        await _userRepository.RecordRegistrationRequestAsync(
+            normalizedUsername,
+            normalizedEmail,
+            hash
+        );
+        await _userRepository.CreateUserAsync(user);
+        return true;
+    }
+
+    public async Task ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+    {
+        if (userId <= 0)
+        {
+            throw new ArgumentException("Invalid user.", nameof(userId));
+        }
+
+        if (string.IsNullOrWhiteSpace(currentPassword))
+        {
+            throw new ArgumentException("Current password is required.", nameof(currentPassword));
+        }
+
+        if (!InputValidationService.ValidatePassword(newPassword))
+        {
+            throw new ArgumentException("Invalid password.", nameof(newPassword));
+        }
+
+        if (currentPassword == newPassword)
+        {
+            throw new ArgumentException(
+                "New password must be different from the current password.",
+                nameof(newPassword)
+            );
+        }
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user is null)
+        {
+            throw new InvalidOperationException("User not found.");
+        }
+
+        if (!VerifyPassword(currentPassword, user.PasswordHash))
+        {
+            throw new InvalidOperationException("Current password is incorrect.");
+        }
+
+        var hash = HashPassword(newPassword);
+        var updated = await _userRepository.UpdatePasswordHashAsync(user.UserId, hash);
+        if (!updated)
+        {
+            throw new InvalidOperationException("Unable to update password.");
+        }
+    }
+
+    public async Task<User?> AuthenticateAsync(
+        string username,
+        string password,
+        string? ipAddress = null
+    )
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            return null;
+        }
+
+        var normalizedUsername = InputValidationService.Normalize(username);
+        var user = await _userRepository.GetByUsernameAsync(normalizedUsername);
+
+        if (user is null)
+        {
+            await _userRepository.RecordLoginAttemptAsync(null, false, ipAddress);
+            return null;
+        }
+
+        if (!VerifyPassword(password, user.PasswordHash))
+        {
+            await _userRepository.RecordLoginAttemptAsync(user.UserId, false, ipAddress);
+            return null;
+        }
+
+        var loginAt = DateTime.UtcNow;
+        await _userRepository.RecordLoginAttemptAsync(user.UserId, true, ipAddress);
+        await _userRepository.UpdateLastLoginAsync(user.UserId, loginAt);
+        user.LastLoginAt = loginAt;
+
+        return user;
     }
 }

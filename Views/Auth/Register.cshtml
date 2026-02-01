@@ -1,38 +1,40 @@
-@{
-    ViewData["Title"] = "Register";
-}
+@model SafeVault.Models.RegisterRequest
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <h2>Register SafeVault Account</h2>
-            <form method="post" action="/auth/register">
-                <div class="form-group mb-3">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" name="username" class="form-control" 
-                           required minlength="3" maxlength="50" 
-                           pattern="[a-zA-Z0-9_]+" 
-                           title="Username: alphanumeric and underscore only, 3-50 chars" />
-                </div>
+<section class="auth-card">
+    <h1 class="auth-title">Register</h1>
+    <p class="auth-subtitle">Create a secure SafeVault account.</p>
 
-                <div class="form-group mb-3">
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" name="email" class="form-control" 
-                           required maxlength="100" />
-                </div>
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <ul class="error-list">
+        @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+        {
+            <li>@error.ErrorMessage</li>
+        }
+        </ul>
+    }
 
-                <div class="form-group mb-3">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" name="password" class="form-control" 
-                           required minlength="8" 
-                           title="Min 8 chars: uppercase, lowercase, digit, special char" />
-                    <small class="form-text text-muted">
-                        Min 8 characters: at least 1 uppercase, 1 lowercase, 1 digit, 1 special character
-                    </small>
-                </div>
-
-                <button type="submit" class="btn btn-primary">Register</button>
-            </form>
+    <form class="form-grid" action="/auth/register" method="post">
+        @Html.AntiForgeryToken()
+        <div>
+            <label for="username">Username</label>
+            <input type="text" id="username" name="Username" value="@Model.Username" required pattern="^[a-zA-Z0-9_]{3,50}$" maxlength="50">
         </div>
-    </div>
-</div>
+
+        <div>
+            <label for="email">Email</label>
+            <input type="email" id="email" name="Email" value="@Model.Email" required maxlength="100">
+        </div>
+
+        <div>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="Password" required minlength="8">
+        </div>
+
+        <button class="btn" type="submit">Register</button>
+    </form>
+
+    <p class="link-row">
+        Already have an account? <a href="/auth/login">Login</a>
+    </p>
+</section>
