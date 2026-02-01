@@ -164,6 +164,39 @@ body {
     font-size: 16px;
 }
 
+.password-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-field input {
+    padding-right: 44px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    background: transparent;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-password svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.toggle-password:hover {
+    color: var(--accent-dark);
+}
+
 .form-grid input:focus {
     outline: 2px solid rgba(217, 119, 85, 0.35);
     border-color: var(--accent);

@@ -22,7 +22,14 @@
 
         <div>
             <label for="password">Password</label>
-            <input type="password" id="password" name="Password" required minlength="8">
+            <div class="password-field">
+                <input type="password" id="password" name="Password" required minlength="8" autocomplete="current-password">
+                <button class="toggle-password" type="button" aria-label="Show password" data-toggle="password" data-target="password">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M12 5c-5 0-9.27 3.11-11 7.5C2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12c-3.03 0-5.5-2.24-5.5-5s2.47-5 5.5-5 5.5 2.24 5.5 5-2.47 5-5.5 5zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+                    </svg>
+                </button>
+            </div>
         </div>
 
         <button class="btn" type="submit">Login</button>
